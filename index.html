@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自己否定パターン診断 | 6タイプ診断</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- INTRO -->
+  <section class="screen" id="screen-intro">
+    <div class="card">
+      <p class="eyebrow">自己理解ワーク</p>
+      <h1>自己否定パターン診断</h1>
+      <p class="lead">
+        あなたが自分を責めてしまうとき、そこには決まった「パターン」があります。
+        18の質問に答えると、6つのタイプの中からあなたに強く出ている2つを見つけ、
+        その組み合わせに合わせた解説をお届けします。
+      </p>
+      <ul class="feature-list">
+        <li>質問数：18問（6タイプ × 各3問）</li>
+        <li>所要時間：3分程度</li>
+        <li>結果パターン：最大15通り</li>
+        <li>同点の場合のみ、追加で最大2問の確認質問</li>
+      </ul>
+      <button class="btn btn-primary" id="btn-start">診断をはじめる</button>
+      <p class="disclaimer">※ このアプリは自己理解のための簡易ツールであり、医学的な診断ではありません。</p>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="screen" id="screen-quiz" hidden>
+    <div class="card">
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <p class="progress-label" id="progress-label">質問 1 / 18</p>
+      </div>
+      <h2 class="question-text" id="question-text"></h2>
+      <div class="options" id="options"></div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-back">戻る</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIEBREAK -->
+  <section class="screen" id="screen-tiebreak" hidden>
+    <div class="card">
+      <p class="eyebrow">最終確認</p>
+      <h2>もう少しだけ教えてください</h2>
+      <p class="lead small" id="tiebreak-intro">
+        上位のタイプが僅差だったため、確認の質問です。（最大2問）
+      </p>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="tiebreak-progress-fill"></div></div>
+        <p class="progress-label" id="tiebreak-progress-label"></p>
+      </div>
+      <h2 class="question-text" id="tiebreak-question-text"></h2>
+      <div class="options" id="tiebreak-options"></div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="screen-result" hidden>
+    <div class="card card-result">
+      <p class="eyebrow" id="result-eyebrow">あなたの自己否定パターンは</p>
+      <h1 class="result-title" id="result-title"></h1>
+      <p class="result-sub" id="result-sub"></p>
+
+      <div class="result-description" id="result-description"></div>
+
+      <div class="advice-box" id="advice-box">
+        <p class="advice-label">一言アドバイス</p>
+        <p class="advice-text" id="advice-text"></p>
+      </div>
+
+      <h3 class="scores-heading">6タイプ スコア内訳</h3>
+      <div class="score-chart" id="score-chart"></div>
+
+      <button class="btn btn-primary" id="btn-restart">もう一度診断する</button>
+    </div>
+  </section>
+
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
