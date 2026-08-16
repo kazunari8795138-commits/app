@@ -171,13 +171,12 @@ html, body {
   box-shadow: 0 8px 28px var(--shadow);
 }
 
-.deco-row {
+.intro-illustration {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  justify-content: center;
+  margin: 0 0 16px;
 }
-.deco-icon { flex-shrink: 0; opacity: 0.85; }
+.intro-illustration svg { max-width: 100%; height: auto; }
 
 .eyebrow {
   font-size: 13px;
