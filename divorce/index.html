@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夫婦関係の危機度セルフチェック | 離婚リスク診断</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- INTRO -->
+  <section class="screen" id="screen-intro">
+    <div class="card">
+      <div class="deco-row" aria-hidden="true">
+        <svg class="deco-icon" width="16" height="16" viewBox="0 0 24 24" fill="var(--cat-respect)"><path d="M12 21s-7.5-4.9-10.2-9.3C.2 8.9 1.3 5 5 4c2.3-.6 4.4.5 5.9 2.6C12.4 4.5 14.5 3.4 16.8 4c3.7 1 4.8 4.9 3.2 7.7C19.5 16.1 12 21 12 21z"/></svg>
+        <svg class="deco-icon" width="15" height="15" viewBox="0 0 24 24" fill="var(--cat-values)"><circle cx="12" cy="12" r="12"/></svg>
+        <svg class="deco-icon" width="14" height="14" viewBox="0 0 24 24" fill="var(--cat-communication)"><path d="M12 0l2.9 8.9H24l-7.5 5.5 2.9 8.9L12 17.8 4.6 23.3l2.9-8.9L0 8.9h9.1z"/></svg>
+      </div>
+      <p class="eyebrow">夫婦関係セルフチェック・約3分</p>
+      <h1>あなたの夫婦関係、危機度は何%？</h1>
+      <p class="subtitle">離婚リスク8タイプ診断</p>
+      <p class="lead">
+        毎日一緒にいても、気持ちがすれ違っていくことはあります。
+        YES / NOで答えるだけで、今のパートナーとの関係にどんなすれ違いのサインが出ているかをチェックしてみましょう。
+      </p>
+      <ul class="feature-list">
+        <li>24問・約3分</li>
+        <li>YES / NOで簡単診断</li>
+        <li>8つの視点でリスクを分析</li>
+      </ul>
+      <p class="guidance">深く考えすぎず、今のパートナーとの関係に近いと思う方を直感で選んでください。</p>
+      <p class="intro-notice">
+        この診断は、司法統計で挙げられる離婚理由（性格の不一致・精神的な負担・金銭感覚の違いなど）を参考に構成した、自己理解のためのセルフチェックです。心理学的・法律的な科学的予測ではありません。
+      </p>
+      <button class="btn btn-primary" id="btn-start">診断をはじめる</button>
+      <p class="disclaimer">※ この診断は医療的・心理学的・法律的な診断や予測を行うものではありません。自己理解のためのセルフチェックとしてご利用ください。</p>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="screen" id="screen-quiz" hidden>
+    <div class="card">
+      <p class="eyebrow">夫婦関係 危機度診断</p>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <p class="progress-label" id="progress-label">Q1 / 24</p>
+      </div>
+      <h2 class="question-text" id="question-text"></h2>
+      <div class="yesno" id="yesno" role="group" aria-label="回答">
+        <button type="button" class="yesno-btn" id="btn-yes" data-value="1">
+          <span class="yn-label">YES</span>
+          <span class="yn-sub">当てはまる</span>
+        </button>
+        <button type="button" class="yesno-btn" id="btn-no" data-value="0">
+          <span class="yn-label">NO</span>
+          <span class="yn-sub">当てはまらない</span>
+        </button>
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-back">前の質問に戻る</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOADING -->
+  <section class="screen" id="screen-loading" hidden>
+    <div class="card loading-wrap">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p class="loading-text" id="loading-text">あなたの回答を整理しています…</p>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="screen-result" hidden>
+    <div class="card card-result">
+      <p class="result-lead">診断結果</p>
+
+      <div class="ring-wrap">
+        <div class="ring-box">
+          <svg class="ring-svg" viewBox="0 0 160 160">
+            <circle class="ring-track" cx="80" cy="80" r="68" stroke-width="14"></circle>
+            <circle class="ring-progress" id="ring-progress" cx="80" cy="80" r="68" stroke-width="14"></circle>
+          </svg>
+          <div class="ring-center">
+            <p class="ring-percent"><span id="ring-percent-num">0</span><span class="ring-percent-sign">%</span></p>
+            <p class="ring-caption">危機度の目安</p>
+          </div>
+        </div>
+        <span class="risk-badge" id="risk-badge"></span>
+      </div>
+
+      <h1 class="risk-title" id="risk-title"></h1>
+      <p class="risk-lead" id="risk-lead"></p>
+
+      <p class="result-note" id="result-note" hidden></p>
+
+      <div class="safety-notice" id="safety-notice" hidden>
+        <p class="safety-notice-title">💬 <span id="safety-title"></span></p>
+        <p id="safety-body"></p>
+        <ul class="safety-contacts" id="safety-contacts"></ul>
+      </div>
+
+      <div class="combo-card">
+        <p id="risk-body"></p>
+      </div>
+
+      <h3 class="scores-heading">特に気になるポイント</h3>
+      <div class="risk-focus" id="risk-focus"></div>
+
+      <h3 class="scores-heading">8つの視点でみるスコア</h3>
+      <p class="scores-caption">スコアが高い＝関係が悪いという意味ではありません。誰の関係にも、大なり小なりすれ違いの芽はあります。</p>
+      <div class="score-chart" id="score-chart"></div>
+
+      <div class="common-message">
+        <p id="common-message-body"></p>
+        <p id="common-message-footer"></p>
+      </div>
+
+      <p class="disclaimer" id="disclaimer-text"></p>
+
+      <div class="action-row">
+        <button class="btn btn-share" id="btn-share">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-7.2L4.5 22H1.4l8.1-9.3L1 2h7.2l5 6.6L18.9 2Zm-1.2 18h1.7L6.4 3.9H4.6L17.7 20Z"/></svg>
+          Xで結果をシェア
+        </button>
+        <button class="btn btn-ghost" id="btn-restart" style="width:100%">もう一度診断する</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
