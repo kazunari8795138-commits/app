@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セッションを記録する | Life Compass</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <svg class="compass-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF6A" stroke-width="1.4">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="12,7 14,12 12,17 10,12" fill="#D4AF6A" stroke="none"/>
+    </svg>
+    <span class="brand-name">Life Compass</span>
+  </a>
+  <div class="nav-links">
+    <a href="sessions.html">セッション一覧</a>
+    <button class="btn-icon" id="btn-settings" type="button">設定</button>
+  </div>
+</div>
+
+<div class="page">
+  <p class="eyebrow">STEP 1</p>
+  <h1>セッションを記録する</h1>
+
+  <div class="panel">
+    <h2>クライアント・セッション情報</h2>
+    <div class="field-row">
+      <div>
+        <label for="f-client-name">クライアント名</label>
+        <input type="text" id="f-client-name" placeholder="例）山田 花子">
+      </div>
+      <div>
+        <label for="f-session-date">セッション日</label>
+        <input type="date" id="f-session-date">
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label for="f-session-number">セッション回数</label>
+        <input type="number" id="f-session-number" min="1" value="1">
+      </div>
+      <div>
+        <label for="f-theme">テーマ（任意・AI判定でも自動生成されます）</label>
+        <input type="text" id="f-theme" placeholder="例）キャリアの方向性について">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Zoom文字起こし</h2>
+    <p class="lead">.txt / .vtt ファイルを読み込むか、テキストを直接貼り付けてください。</p>
+    <input type="file" id="f-file" accept=".txt,.vtt,text/plain" style="margin-bottom:1rem;">
+    <textarea id="f-transcript" placeholder="ここに文字起こしを貼り付け..." style="min-height:220px;"></textarea>
+
+    <div id="status-area"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-judge" type="button">AIで判定する</button>
+      <button class="btn btn-ghost" id="btn-manual" type="button">AIを使わず手動で入力する</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-review" hidden>
+    <p class="eyebrow">STEP 2</p>
+    <h2>判定結果の確認・編集</h2>
+    <p class="lead">AIの判定結果です。内容を確認し、必要に応じて自由に編集してください。</p>
+    <div id="compass-edit-list"></div>
+
+    <label for="f-overall">今日の気づき（総括）</label>
+    <textarea id="f-overall" style="min-height:100px;"></textarea>
+
+    <label for="f-next">次の一歩</label>
+    <textarea id="f-next" style="min-height:80px;"></textarea>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-save" type="button">保存して診断カードを作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-backdrop" id="modal-settings" hidden>
+  <div class="modal">
+    <h2>設定</h2>
+    <p class="hint">AI判定にはAnthropic Claude APIを直接ブラウザから呼び出します。APIキーはこの端末のブラウザ内にのみ保存されます。</p>
+    <label for="input-api-key">Anthropic APIキー</label>
+    <input type="password" id="input-api-key" placeholder="sk-ant-...">
+    <label for="input-model">モデル</label>
+    <input type="text" id="input-model" placeholder="claude-sonnet-4-5">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-settings-cancel" type="button">閉じる</button>
+      <button class="btn btn-primary" id="btn-settings-save" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  const els = {
+    clientName: document.getElementById("f-client-name"),
+    sessionDate: document.getElementById("f-session-date"),
+    sessionNumber: document.getElementById("f-session-number"),
+    theme: document.getElementById("f-theme"),
+    file: document.getElementById("f-file"),
+    transcript: document.getElementById("f-transcript"),
+    statusArea: document.getElementById("status-area"),
+    btnJudge: document.getElementById("btn-judge"),
+    btnManual: document.getElementById("btn-manual"),
+    panelReview: document.getElementById("panel-review"),
+    compassList: document.getElementById("compass-edit-list"),
+    overall: document.getElementById("f-overall"),
+    next: document.getElementById("f-next"),
+    btnSave: document.getElementById("btn-save"),
+  };
+
+  els.sessionDate.value = new Date().toISOString().slice(0, 10);
+
+  els.clientName.addEventListener("change", () => {
+    if (els.clientName.value.trim()) {
+      els.sessionNumber.value = nextSessionNumber(els.clientName.value.trim());
+    }
+  });
+
+  els.file.addEventListener("change", () => {
+    const file = els.file.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => (els.transcript.value = reader.result);
+    reader.readAsText(file);
+  });
+
+  let currentResult = null; // { theme, compasses, overall_summary, next_step }
+
+  function setStatus(html, cls) {
+    els.statusArea.innerHTML = html ? `<div class="status-msg ${cls}">${html}</div>` : "";
+  }
+
+  function renderReview(result) {
+    currentResult = result;
+    els.theme.value = result.theme || els.theme.value;
+    els.overall.value = result.overall_summary || "";
+    els.next.value = result.next_step || "";
+
+    els.compassList.innerHTML = "";
+    COMPASSES.forEach((c) => {
+      const data = (result.compasses && result.compasses[c.key]) || { score: 5, summary: "" };
+      const row = document.createElement("div");
+      row.className = "compass-edit";
+      row.dataset.key = c.key;
+      row.innerHTML = `
+        <div class="compass-edit-head">
+          <span class="ja">${c.ja}</span>
+          <span class="en">${c.en}</span>
+        </div>
+        <div class="score-row">
+          <input type="range" min="1" max="10" step="1" value="${data.score}" class="c-score">
+          <span class="score-value">${data.score}</span>
+        </div>
+        <textarea class="c-summary" placeholder="要約">${data.summary || ""}</textarea>
+      `;
+      const range = row.querySelector(".c-score");
+      const valueLabel = row.querySelector(".score-value");
+      range.addEventListener("input", () => (valueLabel.textContent = range.value));
+      els.compassList.appendChild(row);
+    });
+
+    els.panelReview.hidden = false;
+    els.panelReview.scrollIntoView({ behavior: "smooth" });
+  }
+
+  els.btnJudge.addEventListener("click", async () => {
+    const transcript = els.transcript.value.trim();
+    if (!transcript) {
+      setStatus("文字起こしを入力してください。", "error");
+      return;
+    }
+    els.btnJudge.disabled = true;
+    setStatus('<span class="spinner"></span>AIが文字起こしを判定しています…（数十秒かかる場合があります）', "info");
+    try {
+      const result = await judgeTranscript(transcript);
+      setStatus("", "");
+      renderReview(result);
+    } catch (e) {
+      console.error(e);
+      setStatus(e.message || "判定に失敗しました。", "error");
+    } finally {
+      els.btnJudge.disabled = false;
+    }
+  });
+
+  els.btnManual.addEventListener("click", () => {
+    renderReview({
+      theme: els.theme.value,
+      compasses: emptySession().compasses,
+      overall_summary: "",
+      next_step: "",
+    });
+  });
+
+  els.btnSave.addEventListener("click", () => {
+    const clientName = els.clientName.value.trim();
+    if (!clientName) {
+      alert("クライアント名を入力してください。");
+      return;
+    }
+    const compasses = {};
+    els.compassList.querySelectorAll(".compass-edit").forEach((row) => {
+      const key = row.dataset.key;
+      compasses[key] = {
+        score: Number(row.querySelector(".c-score").value),
+        summary: row.querySelector(".c-summary").value.trim(),
+      };
+    });
+
+    const session = {
+      id: makeId(clientName, els.sessionDate.value),
+      client_name: clientName,
+      session_date: els.sessionDate.value,
+      session_number: Number(els.sessionNumber.value) || 1,
+      theme: els.theme.value.trim(),
+      compasses,
+      overall_summary: els.overall.value.trim(),
+      next_step: els.next.value.trim(),
+      created_at: new Date().toISOString(),
+    };
+    Store.save(session);
+    window.location.href = `card.html?id=${encodeURIComponent(session.id)}`;
+  });
+
+  // 設定モーダル
+  const modal = document.getElementById("modal-settings");
+  document.getElementById("btn-settings").addEventListener("click", () => {
+    document.getElementById("input-api-key").value = Settings.apiKey;
+    document.getElementById("input-model").value = Settings.model;
+    modal.hidden = false;
+  });
+  document.getElementById("btn-settings-cancel").addEventListener("click", () => (modal.hidden = true));
+  document.getElementById("btn-settings-save").addEventListener("click", () => {
+    Settings.apiKey = document.getElementById("input-api-key").value.trim();
+    Settings.model = document.getElementById("input-model").value.trim() || undefined;
+    modal.hidden = true;
+  });
+</script>
+</body>
+</html>

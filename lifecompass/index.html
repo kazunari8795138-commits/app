@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Compass Session | Lifecompass運営事務局</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <svg class="compass-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF6A" stroke-width="1.4">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="12,7 14,12 12,17 10,12" fill="#D4AF6A" stroke="none"/>
+    </svg>
+    <span class="brand-name">Life Compass</span>
+  </a>
+  <div class="nav-links">
+    <a href="sessions.html">セッション一覧</a>
+    <button class="btn-icon" id="btn-settings" type="button">設定</button>
+  </div>
+</div>
+
+<div class="page">
+  <p class="eyebrow" style="text-transform:none;">Lifecompass運営事務局 — セッション記録</p>
+  <h1>診断ワーク入力から診断カード作成まで</h1>
+  <p class="lead">
+    Zoomセッションの文字起こしを貼り付けると、「8つの羅針盤」フレームワークに沿ってAIが判定し、
+    クライアントに共有できる診断カード（Webページ）を作成します。
+  </p>
+
+  <div class="panel">
+    <h2>① セッションを記録する</h2>
+    <p class="lead">文字起こしを入力してAI判定を行い、8つの羅針盤のスコアと要約を作成します。</p>
+    <a class="btn btn-primary" href="input.html">新しいセッションを記録する</a>
+  </div>
+
+  <div class="panel">
+    <h2>② 診断カードを見る・共有する</h2>
+    <p class="lead">記録済みのセッションから、クライアントに共有できる羅針盤カードを開きます。</p>
+    <a class="btn btn-ghost" href="sessions.html">セッション一覧を見る</a>
+  </div>
+
+  <div class="panel">
+    <h3>8つの羅針盤</h3>
+    <p class="lead" style="margin-bottom:0.8rem;">Self / Relationship / Career / Finance / Growth / Health / Purpose / Joy</p>
+    <div id="compass-legend" style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;font-size:0.85rem;color:var(--text-muted);"></div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-backdrop" id="modal-settings" hidden>
+  <div class="modal">
+    <h2>設定</h2>
+    <p class="hint">AI判定にはAnthropic Claude APIを直接ブラウザから呼び出します。APIキーはこの端末のブラウザ内にのみ保存されます。</p>
+    <label for="input-api-key">Anthropic APIキー</label>
+    <input type="password" id="input-api-key" placeholder="sk-ant-...">
+    <label for="input-model">モデル</label>
+    <input type="text" id="input-model" placeholder="claude-sonnet-4-5">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-settings-cancel" type="button">閉じる</button>
+      <button class="btn btn-primary" id="btn-settings-save" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  const legend = document.getElementById("compass-legend");
+  COMPASSES.forEach((c) => {
+    const div = document.createElement("div");
+    div.textContent = `${c.en} — ${c.ja}`;
+    legend.appendChild(div);
+  });
+
+  const modal = document.getElementById("modal-settings");
+  document.getElementById("btn-settings").addEventListener("click", () => {
+    document.getElementById("input-api-key").value = Settings.apiKey;
+    document.getElementById("input-model").value = Settings.model;
+    modal.hidden = false;
+  });
+  document.getElementById("btn-settings-cancel").addEventListener("click", () => (modal.hidden = true));
+  document.getElementById("btn-settings-save").addEventListener("click", () => {
+    Settings.apiKey = document.getElementById("input-api-key").value.trim();
+    Settings.model = document.getElementById("input-model").value.trim() || undefined;
+    modal.hidden = true;
+  });
+</script>
+</body>
+</html>

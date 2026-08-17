@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>診断カード | Life Compass Session</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <svg class="compass-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF6A" stroke-width="1.4">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="12,7 14,12 12,17 10,12" fill="#D4AF6A" stroke="none"/>
+    </svg>
+    <span class="brand-name">Life Compass</span>
+  </a>
+  <div class="nav-links">
+    <a href="sessions.html">セッション一覧</a>
+  </div>
+</div>
+
+<div class="card-page">
+  <div id="card-root"></div>
+</div>
+
+<script src="common.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script>
+  function getSession() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("data")) {
+      try {
+        return decodeSessionFromUrl(params.get("data"));
+      } catch (e) {
+        console.error(e);
+        return null;
+      }
+    }
+    if (params.get("id")) {
+      return Store.get(params.get("id"));
+    }
+    return null;
+  }
+
+  const session = getSession();
+  const root = document.getElementById("card-root");
+
+  if (!session) {
+    root.innerHTML = `
+      <div class="compass-card">
+        <h2>診断カードが見つかりません</h2>
+        <p class="lead">URLが正しいかご確認ください。</p>
+        <a class="btn btn-ghost" href="sessions.html">セッション一覧に戻る</a>
+      </div>`;
+  } else {
+    root.innerHTML = `
+      <div class="compass-card">
+        <div class="card-header">
+          <svg class="compass-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF6A" stroke-width="1.2">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="12,7 14,12 12,17 10,12" fill="#D4AF6A" stroke="none"/>
+          </svg>
+          <p class="session-label">Life Compass Session</p>
+          <p class="client-name">${session.client_name} 様</p>
+          <p class="session-meta">${session.session_date} ・ 第${session.session_number}回セッション${session.theme ? " ・ " + session.theme : ""}</p>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="radar-chart"></canvas>
+        </div>
+
+        <div class="card-section">
+          <h3>今日の気づき</h3>
+          <p>${(session.overall_summary || "").replace(/\n/g, "<br>")}</p>
+        </div>
+
+        <div class="card-section">
+          <h3>次の一歩</h3>
+          <p>${(session.next_step || "").replace(/\n/g, "<br>")}</p>
+        </div>
+
+        <div class="card-footer">G7 — Believe in Possibilities.</div>
+
+        <div class="card-share-row">
+          <button class="btn btn-ghost btn-block" id="btn-copy-link">共有リンクをコピー</button>
+        </div>
+      </div>
+    `;
+
+    const ctx = document.getElementById("radar-chart").getContext("2d");
+    new Chart(ctx, {
+      type: "radar",
+      data: {
+        labels: COMPASSES.map((c) => c.en),
+        datasets: [
+          {
+            data: COMPASSES.map((c) => (session.compasses[c.key] || {}).score || 0),
+            backgroundColor: "rgba(212,175,106,0.18)",
+            borderColor: "#D4AF6A",
+            borderWidth: 2,
+            pointBackgroundColor: "#D4AF6A",
+            pointBorderColor: "#0B1B33",
+            pointRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            min: 0,
+            max: 10,
+            ticks: { display: false, stepSize: 2 },
+            grid: { color: "rgba(255,255,255,0.12)" },
+            angleLines: { color: "rgba(255,255,255,0.15)" },
+            pointLabels: { color: "#C9D2E0", font: { size: 11 } },
+          },
+        },
+      },
+    });
+
+    document.getElementById("btn-copy-link").addEventListener("click", async () => {
+      const url = `${location.origin}${location.pathname}?data=${encodeSessionForUrl(session)}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        const btn = document.getElementById("btn-copy-link");
+        const original = btn.textContent;
+        btn.textContent = "コピーしました！";
+        setTimeout(() => (btn.textContent = original), 1800);
+      } catch (e) {
+        prompt("以下のURLをコピーしてください:", url);
+      }
+    });
+  }
+</script>
+</body>
+</html>

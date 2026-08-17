@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セッション一覧 | Life Compass</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <svg class="compass-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF6A" stroke-width="1.4">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="12,7 14,12 12,17 10,12" fill="#D4AF6A" stroke="none"/>
+    </svg>
+    <span class="brand-name">Life Compass</span>
+  </a>
+  <div class="nav-links">
+    <a href="input.html">新規記録</a>
+    <button class="btn-icon" id="btn-settings" type="button">設定</button>
+  </div>
+</div>
+
+<div class="page">
+  <p class="eyebrow">セッション記録</p>
+  <h1>セッション一覧</h1>
+  <p class="lead">クライアント・セッション回数を横断して記録を確認できます。データはこの端末のブラウザ内に保存されています。</p>
+
+  <div class="panel">
+    <h2>バックアップ</h2>
+    <p class="lead">全セッションをJSONファイルとして書き出し・読み込みできます（別端末への引き継ぎやSQLite等への将来移行にも利用できます）。</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-export">全セッションをエクスポート</button>
+      <label class="btn btn-ghost" style="cursor:pointer;">
+        インポート
+        <input type="file" id="f-import" accept="application/json" style="display:none;">
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>記録済みセッション</h2>
+    <ul class="session-list" id="session-list"></ul>
+    <p class="empty-state" id="empty-state" hidden>まだセッションが記録されていません。</p>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-backdrop" id="modal-settings" hidden>
+  <div class="modal">
+    <h2>設定</h2>
+    <p class="hint">AI判定にはAnthropic Claude APIを直接ブラウザから呼び出します。APIキーはこの端末のブラウザ内にのみ保存されます。</p>
+    <label for="input-api-key">Anthropic APIキー</label>
+    <input type="password" id="input-api-key" placeholder="sk-ant-...">
+    <label for="input-model">モデル</label>
+    <input type="text" id="input-model" placeholder="claude-sonnet-4-5">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-settings-cancel" type="button">閉じる</button>
+      <button class="btn btn-primary" id="btn-settings-save" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+  function avgScore(session) {
+    const vals = COMPASSES.map((c) => (session.compasses[c.key] || {}).score || 0);
+    return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+  }
+
+  function render() {
+    const list = document.getElementById("session-list");
+    const sessions = Store.all().sort((a, b) => (b.session_date || "").localeCompare(a.session_date || ""));
+    list.innerHTML = "";
+    document.getElementById("empty-state").hidden = sessions.length > 0;
+
+    sessions.forEach((s) => {
+      const li = document.createElement("li");
+      li.className = "session-row";
+      li.innerHTML = `
+        <div class="session-info">
+          <div class="name">${s.client_name}（第${s.session_number}回）</div>
+          <div class="meta">${s.session_date} ・ ${s.theme || "テーマ未設定"} ・ 平均スコア ${avgScore(s)}</div>
+        </div>
+        <div class="session-actions">
+          <a class="btn btn-ghost" href="card.html?id=${encodeURIComponent(s.id)}">カードを見る</a>
+          <button class="btn btn-danger" data-id="${s.id}">削除</button>
+        </div>
+      `;
+      li.querySelector(".btn-danger").addEventListener("click", () => {
+        if (confirm(`${s.client_name}（${s.session_date}）のセッションを削除しますか？`)) {
+          Store.remove(s.id);
+          render();
+        }
+      });
+      list.appendChild(li);
+    });
+  }
+  render();
+
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(Store.all(), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lifecompass_sessions_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("f-import").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        const sessions = Array.isArray(parsed) ? parsed : [parsed];
+        Store.importMany(sessions);
+        render();
+        alert(`${sessions.length}件のセッションを読み込みました。`);
+      } catch (err) {
+        alert("JSONファイルの読み込みに失敗しました。");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  // 設定モーダル
+  const modal = document.getElementById("modal-settings");
+  document.getElementById("btn-settings").addEventListener("click", () => {
+    document.getElementById("input-api-key").value = Settings.apiKey;
+    document.getElementById("input-model").value = Settings.model;
+    modal.hidden = false;
+  });
+  document.getElementById("btn-settings-cancel").addEventListener("click", () => (modal.hidden = true));
+  document.getElementById("btn-settings-save").addEventListener("click", () => {
+    Settings.apiKey = document.getElementById("input-api-key").value.trim();
+    Settings.model = document.getElementById("input-model").value.trim() || undefined;
+    modal.hidden = true;
+  });
+</script>
+</body>
+</html>
