@@ -1,284 +1,362 @@
-/* ===========================================================
-   自己否定パターン診断 - アプリケーションロジック
-   フロー: intro → quiz(18問, 同点時のみ+最大2問) → loading → result
-   タイブレークは専用画面を作らず、同じ質問UIの延長として自然に出題する。
-   =========================================================== */
-
+/* ---------------- 状態 ---------------- */
 const state = {
-  sequence: [], // 出題する質問の配列（最初は18件、同点時のみ最大2件追加）
-  index: 0,
-  answers: {}, // { questionId: 1(YES) | 0(NO) }
-  baseScores: null, // 18問終了時点の各タイプ得点
+  industry: INDUSTRIES[0].id,
+  position: POSITIONS[0].id,
+  tenure: TENURES[0].id,
+  answers: {}, // qid -> text
+  okng: {},    // qid -> 'OK'|'NG'
+  checks: {},  // idx -> bool
+  agendaItems: ['', '', ''],
 };
 
-let lastResult = null; // シェアボタン用に最後の結果を保持
+function getIndustry(){ return INDUSTRIES.find(i => i.id === state.industry); }
+function getPosition(){ return POSITIONS.find(p => p.id === state.position); }
+function getTenure(){ return TENURES.find(t => t.id === state.tenure); }
 
-const el = {
-  screenIntro: document.getElementById("screen-intro"),
-  screenQuiz: document.getElementById("screen-quiz"),
-  screenLoading: document.getElementById("screen-loading"),
-  screenResult: document.getElementById("screen-result"),
-
-  btnStart: document.getElementById("btn-start"),
-  btnBack: document.getElementById("btn-back"),
-  btnYes: document.getElementById("btn-yes"),
-  btnNo: document.getElementById("btn-no"),
-  btnShare: document.getElementById("btn-share"),
-  btnRestart: document.getElementById("btn-restart"),
-
-  progressFill: document.getElementById("progress-fill"),
-  progressLabel: document.getElementById("progress-label"),
-  questionText: document.getElementById("question-text"),
-
-  loadingText: document.getElementById("loading-text"),
-
-  resultNote: document.getElementById("result-note"),
-  primaryDot: document.getElementById("primary-dot"),
-  primaryName: document.getElementById("primary-name"),
-  primaryCatch: document.getElementById("primary-catch"),
-  secondaryDot: document.getElementById("secondary-dot"),
-  secondaryName: document.getElementById("secondary-name"),
-  secondaryCatch: document.getElementById("secondary-catch"),
-  comboNames: document.getElementById("combo-names"),
-  comboTitleText: document.getElementById("combo-title-text"),
-  comboFeature: document.getElementById("combo-feature"),
-  comboPattern: document.getElementById("combo-pattern"),
-  scoreChart: document.getElementById("score-chart"),
-  heartHabits: document.getElementById("heart-habits"),
-  adviceText: document.getElementById("advice-text"),
-  commonMessageBody: document.getElementById("common-message-body"),
-  commonMessageFooter: document.getElementById("common-message-footer"),
-  disclaimerText: document.getElementById("disclaimer-text"),
-};
-
-function showScreen(screen) {
-  [el.screenIntro, el.screenQuiz, el.screenLoading, el.screenResult].forEach((s) => {
-    s.hidden = s !== screen;
-  });
-  window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+function fillTemplate(tpl){
+  const ind = getIndustry(), pos = getPosition(), ten = getTenure();
+  return tpl
+    .replaceAll('{ind}', ind.label)
+    .replaceAll('{i0}', ind.issues[0])
+    .replaceAll('{i1}', ind.issues[1])
+    .replaceAll('{i2}', ind.issues[2])
+    .replaceAll('{i3}', ind.issues[3])
+    .replaceAll('{pos}', pos.phrase)
+    .replaceAll('{ten}', ten.phrase);
 }
 
-/* ---------- 質問の出題順シャッフル ---------- */
-
-function shuffle(array) {
-  const a = array.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+/* ---------------- 描画 ---------------- */
+function populateSelect(el, list){
+  el.innerHTML = list.map(o => `<option value="${o.id}">${o.label}</option>`).join('');
 }
 
-/* 6タイプ×3問を「3ラウンド」に分け、ラウンドごとにタイプの出題順をシャッフルする。
-   これにより毎回異なる順番になりつつ、6問ごとに必ず6タイプが1問ずつ出る。 */
-function buildQuestionSequence() {
-  const byType = {};
-  TYPES.forEach((t) => (byType[t.code] = []));
-  MAIN_QUESTIONS.forEach((q) => byType[q.type].push(q));
+function renderAll(){
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const secEl = document.createElement('div');
+    secEl.className = 'section';
+    secEl.innerHTML = `
+      <div class="section-head">
+        <div class="section-num">${sec.num}</div>
+        <h2>${sec.title}</h2>
+      </div>
+      <div class="section-desc">${sec.desc}</div>
+    `;
+    const qWrap = document.createElement('div');
+    sec.questions.forEach(q => {
+      qWrap.appendChild(renderQCard(sec, q));
+    });
+    secEl.appendChild(qWrap);
 
-  const sequence = [];
-  for (let round = 0; round < 3; round++) {
-    const typeOrder = shuffle(TYPES.map((t) => t.code));
-    typeOrder.forEach((code) => sequence.push(byType[code][round]));
-  }
-  return sequence;
-}
-
-/* ---------- 質問フェーズ ---------- */
-
-function startQuiz() {
-  state.sequence = buildQuestionSequence();
-  state.index = 0;
-  state.answers = {};
-  state.baseScores = null;
-  renderQuestion();
-}
-
-function renderQuestion() {
-  const q = state.sequence[state.index];
-  const total = state.sequence.length;
-  const answered = state.answers[q.id];
-
-  el.progressFill.style.width = `${(state.index / total) * 100}%`;
-  el.progressLabel.textContent = `Q${state.index + 1} / ${total}`;
-  el.questionText.textContent = q.text;
-  el.btnBack.disabled = state.index === 0;
-
-  el.btnYes.classList.toggle("selected", answered === 1);
-  el.btnNo.classList.toggle("selected", answered === 0);
-
-  showScreen(el.screenQuiz);
-}
-
-function selectAnswer(value) {
-  const q = state.sequence[state.index];
-  state.answers[q.id] = value;
-  renderQuestion();
-  setTimeout(() => {
-    if (state.index < state.sequence.length - 1) {
-      state.index += 1;
-      renderQuestion();
-    } else {
-      finishCurrentBatch();
+    if(sec.isAgenda){
+      secEl.appendChild(renderAgendaBuilder());
     }
-  }, 180);
+    if(sec.isChecklist){
+      secEl.appendChild(renderChecklist(sec.checklistItems));
+    }
+
+    container.appendChild(secEl);
+  });
+  updateProgress();
 }
 
-el.btnYes.addEventListener("click", () => selectAnswer(1));
-el.btnNo.addEventListener("click", () => selectAnswer(0));
+function renderQCard(sec, q){
+  const card = document.createElement('div');
+  card.className = 'qcard';
+  const filled = q.templates.map(fillTemplate);
+  const answerKey = q.qid;
 
-el.btnBack.addEventListener("click", () => {
-  if (state.index > 0) {
-    state.index -= 1;
-    renderQuestion();
+  card.innerHTML = `
+    <span class="qtag">${q.tag}</span>
+    <p class="qtext">${q.text}</p>
+    ${sec.isChecklist ? `
+      <div class="okng">
+        <button type="button" class="ok" data-k="${answerKey}">OK</button>
+        <button type="button" class="ng" data-k="${answerKey}">NG</button>
+      </div>` : ''}
+    <div class="chips" data-key="${answerKey}"></div>
+    <textarea placeholder="選択肢をタップして挿入、または自由に記入してください" data-key="${answerKey}"></textarea>
+  `;
+
+  const chipsEl = card.querySelector('.chips');
+  filled.forEach(text => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.textContent = text;
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+      const ta = card.querySelector('textarea');
+      const lines = ta.value.split('\n').filter(Boolean);
+      if(chip.classList.contains('selected')){
+        if(!lines.includes('・' + text)) lines.push('・' + text);
+      } else {
+        const idx = lines.indexOf('・' + text);
+        if(idx > -1) lines.splice(idx, 1);
+      }
+      ta.value = lines.join('\n');
+      state.answers[answerKey] = ta.value;
+      updateProgress();
+    });
+    chipsEl.appendChild(chip);
+  });
+
+  const ta = card.querySelector('textarea');
+  ta.value = state.answers[answerKey] || '';
+  ta.addEventListener('input', () => {
+    state.answers[answerKey] = ta.value;
+    updateProgress();
+  });
+
+  if(sec.isChecklist){
+    const okBtn = card.querySelector('.ok');
+    const ngBtn = card.querySelector('.ng');
+    const setState = (val) => {
+      state.okng[answerKey] = val;
+      okBtn.classList.toggle('on', val === 'OK');
+      ngBtn.classList.toggle('on', val === 'NG');
+    };
+    okBtn.addEventListener('click', () => setState(state.okng[answerKey] === 'OK' ? null : 'OK'));
+    ngBtn.addEventListener('click', () => setState(state.okng[answerKey] === 'NG' ? null : 'NG'));
   }
+
+  return card;
+}
+
+function renderAgendaBuilder(){
+  const wrap = document.createElement('div');
+  wrap.className = 'qcard';
+  wrap.innerHTML = `
+    <span class="qtag">3. Agenda</span>
+    <p class="qtext">当日のAgenda項目（1〜7）を自由に組み立ててください</p>
+    <div id="agenda-list"></div>
+    <button type="button" class="add-row" id="agenda-add">＋ 項目を追加</button>
+  `;
+  const list = wrap.querySelector('#agenda-list');
+  function renderRows(){
+    list.innerHTML = '';
+    state.agendaItems.forEach((val, i) => {
+      const row = document.createElement('div');
+      row.className = 'agenda-item';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = val;
+      input.placeholder = '例）ダイアードワーク：お互いの印象をフィードバックし合う';
+      input.addEventListener('input', (e) => {
+        state.agendaItems[i] = e.target.value;
+      });
+      const badge = document.createElement('div');
+      badge.className = 'agenda-badge';
+      badge.textContent = i + 1;
+      row.appendChild(badge);
+      row.appendChild(input);
+      list.appendChild(row);
+    });
+  }
+  wrap.querySelector('#agenda-add').addEventListener('click', () => {
+    state.agendaItems.push('');
+    renderRows();
+  });
+  renderRows();
+  return wrap;
+}
+
+function renderChecklist(items){
+  const wrap = document.createElement('div');
+  wrap.className = 'qcard';
+  wrap.innerHTML = `<span class="qtag">Checklist</span><p class="qtext">最終確認項目</p><ul class="checklist"></ul>`;
+  const ul = wrap.querySelector('.checklist');
+  items.forEach((text, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<input type="checkbox" id="chk-${i}"><label for="chk-${i}">${text}</label>`;
+    li.querySelector('input').addEventListener('change', (e) => {
+      state.checks[i] = e.target.checked;
+      updateProgress();
+    });
+    ul.appendChild(li);
+  });
+  return wrap;
+}
+
+function updateProgress(){
+  const totalQ = SECTIONS.reduce((n, s) => n + s.questions.length, 0);
+  const answered = Object.values(state.answers).filter(v => v && v.trim()).length;
+  document.getElementById('progress').textContent = `${answered} / ${totalQ} 問 回答済み`;
+}
+
+/* 業種/職位/勤続 が変わったら選択肢の文言を再生成 */
+function attachSelectors(){
+  const indSel = document.getElementById('f-industry');
+  const posSel = document.getElementById('f-position');
+  const tenSel = document.getElementById('f-tenure');
+  populateSelect(indSel, INDUSTRIES);
+  populateSelect(posSel, POSITIONS);
+  populateSelect(tenSel, TENURES);
+  indSel.value = state.industry;
+  posSel.value = state.position;
+  tenSel.value = state.tenure;
+
+  const otherNote = document.getElementById('other-note');
+  function syncOtherNote(){
+    otherNote.classList.toggle('show', indSel.value === 'other');
+  }
+  syncOtherNote();
+
+  indSel.addEventListener('change', () => { state.industry = indSel.value; syncOtherNote(); renderAll(); });
+  posSel.addEventListener('change', () => { state.position = posSel.value; renderAll(); });
+  tenSel.addEventListener('change', () => { state.tenure = tenSel.value; renderAll(); });
+}
+
+/* ---------------- テキスト書き出し ---------------- */
+function buildTextOutput(){
+  const ind = getIndustry(), pos = getPosition(), ten = getTenure();
+  const title = document.getElementById('f-title').value || '（研修名未入力）';
+  let out = `研修設計シート\n研修名：${title}\n業種：${ind.label} / 対象階層：${pos.label} / 勤続年数：${ten.label}\n\n`;
+  SECTIONS.forEach(sec => {
+    out += `\n${sec.num}. ${sec.title}\n`;
+    sec.questions.forEach(q => {
+      out += `\n${q.text}\n`;
+      if(sec.isChecklist && state.okng[q.qid]) out += `[${state.okng[q.qid]}]\n`;
+      out += (state.answers[q.qid] || '（未回答）') + '\n';
+    });
+    if(sec.isAgenda){
+      out += '\nAgenda項目：\n' + state.agendaItems.filter(Boolean).map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n';
+    }
+    if(sec.isChecklist){
+      out += '\nチェックリスト：\n' + sec.checklistItems.map((t, i) => `[${state.checks[i] ? 'x' : ' '}] ${t}`).join('\n') + '\n';
+    }
+  });
+  return { out, title };
+}
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const { out, title } = buildTextOutput();
+  const blob = new Blob([out], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `研修設計シート_${title}.txt`;
+  a.click();
 });
 
-el.btnStart.addEventListener("click", startQuiz);
+attachSelectors();
+renderAll();
 
-/* ---------- スコア集計 & タイブレーク判定 ---------- */
+/* ---------------- PowerPoint 書き出し ---------------- */
+const PPTX_NAVY = '26415A';
+const PPTX_TEAL = '3C6E64';
+const PPTX_HIGHLIGHT = 'F2B705';
+const PPTX_INK = '1E2A32';
+const PPTX_PAPER = 'EEF0EC';
 
-function computeBaseScores() {
-  const scores = {};
-  TYPES.forEach((t) => (scores[t.code] = 0));
-  MAIN_QUESTIONS.forEach((q) => {
-    scores[q.type] += state.answers[q.id] || 0;
-  });
-  return scores;
+function answerLines(qid){
+  const raw = (state.answers[qid] || '').split('\n').map(s => s.trim()).filter(Boolean);
+  return raw.length ? raw : ['（未回答）'];
 }
 
-function sortTypesByScore(scores) {
-  // TYPES配列の並び順を安定した優先順位（同点時の最終フォールバック）として使う
-  return TYPES.map((t, index) => ({ code: t.code, score: scores[t.code], index })).sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.index - b.index;
-  });
-}
+async function buildPptx(){
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: 'A', width: 10, height: 5.625 });
+  pptx.layout = 'A';
 
-function finishCurrentBatch() {
-  if (state.sequence.length === 18) {
-    // 18問終了。1位・2位の境界（2位と3位）が同点の場合のみ、最大2問を追加出題する
-    state.baseScores = computeBaseScores();
-    const sorted = sortTypesByScore(state.baseScores);
-    const boundaryTie = sorted[1].score === sorted[2].score;
+  const ind = getIndustry(), pos = getPosition(), ten = getTenure();
+  const title = document.getElementById('f-title').value || '研修';
 
-    if (boundaryTie) {
-      const tieValue = sorted[1].score;
-      const tieGroup = sorted.filter((t) => t.score === tieValue);
-      const queue = tieGroup.slice(0, 2).map((t) => t.code);
-      queue.forEach((code) => state.sequence.push(TIEBREAK_QUESTIONS[code]));
-      state.index += 1;
-      renderQuestion();
+  // タイトルスライド
+  let s = pptx.addSlide();
+  s.background = { color: PPTX_NAVY };
+  s.addText('研修設計スライド', { x: 0.6, y: 1.35, w: 8.8, h: 0.5, fontSize: 14, color: PPTX_HIGHLIGHT, bold: true, charSpacing: 2 });
+  s.addText(title, { x: 0.6, y: 1.9, w: 8.8, h: 1.2, fontFace: 'Yu Mincho', fontSize: 40, bold: true, color: 'FFFFFF' });
+  s.addText(`業種：${ind.label}　｜　対象：${pos.label}　｜　勤続：${ten.label}`,
+    { x: 0.6, y: 3.2, w: 8.8, h: 0.5, fontSize: 13, color: 'D8DEE4' });
+
+  // 各セクション
+  SECTIONS.forEach(sec => {
+    // セクション区切りスライド
+    let ds = pptx.addSlide();
+    ds.background = { color: PPTX_PAPER };
+    ds.addShape('rect', { x: 0, y: 2.55, w: 10, h: 0.05, fill: { color: PPTX_NAVY } });
+    ds.addText(sec.num, { x: 0.6, y: 1.4, w: 2, h: 1, fontFace: 'Yu Mincho', fontSize: 34, bold: true, color: PPTX_TEAL });
+    ds.addText(sec.title, { x: 0.6, y: 2.7, w: 8.8, h: 0.8, fontFace: 'Yu Mincho', fontSize: 28, bold: true, color: PPTX_INK });
+    ds.addText(sec.desc || '', { x: 0.6, y: 3.5, w: 8.8, h: 0.5, fontSize: 13, color: '5B6870' });
+
+    if(sec.isAgenda){
+      let as_ = pptx.addSlide();
+      as_.background = { color: 'FFFFFF' };
+      as_.addText('Agenda', { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: 'Yu Mincho', fontSize: 22, bold: true, color: PPTX_NAVY });
+      const flowRows = [
+        ['checkin', answerLines('checkin')],
+        ['purpose', answerLines('purpose')],
+      ];
+      let y = 1.15;
+      flowRows.forEach(([label, lines]) => {
+        as_.addText(label, { x: 0.5, y, w: 1.6, h: 0.4, fontSize: 12, bold: true, color: PPTX_TEAL });
+        as_.addText(lines.join('\n'), { x: 2.2, y, w: 7.2, h: 0.4 * lines.length, fontSize: 12, color: PPTX_INK, valign: 'top' });
+        y += 0.35 * lines.length + 0.25;
+      });
+      as_.addText('Agenda 項目', { x: 0.5, y, w: 2, h: 0.4, fontSize: 12, bold: true, color: PPTX_TEAL });
+      y += 0.4;
+      const items = state.agendaItems.filter(Boolean);
+      const itemsText = items.length ? items.map((t, i) => `${i + 1}. ${t}`).join('\n') : '（未入力）';
+      as_.addText(itemsText, { x: 0.5, y, w: 9, h: 5.4 - y, fontSize: 13, color: PPTX_INK, valign: 'top' });
+
+      let cs = pptx.addSlide();
+      cs.background = { color: 'FFFFFF' };
+      cs.addText('checkout', { x: 0.5, y: 0.35, w: 9, h: 0.6, fontFace: 'Yu Mincho', fontSize: 22, bold: true, color: PPTX_NAVY });
+      cs.addText(answerLines('checkout').join('\n'), { x: 0.5, y: 1.15, w: 9, h: 3.8, fontSize: 14, color: PPTX_INK, valign: 'top' });
       return;
     }
-  }
-  goToResult();
-}
 
-function computeFinalScores() {
-  const scores = { ...state.baseScores };
-  Object.values(TIEBREAK_QUESTIONS).forEach((tq) => {
-    if (state.answers[tq.id] !== undefined) {
-      scores[tq.type] += state.answers[tq.id];
+    if(sec.isChecklist){
+      sec.questions.forEach(q => {
+        let qs = pptx.addSlide();
+        qs.background = { color: 'FFFFFF' };
+        qs.addText(q.text, { x: 0.5, y: 0.4, w: 9, h: 0.9, fontFace: 'Yu Mincho', fontSize: 18, bold: true, color: PPTX_NAVY, valign: 'top' });
+        if(state.okng[q.qid]){
+          qs.addText(state.okng[q.qid], {
+            x: 8.0, y: 0.4, w: 1.4, h: 0.5,
+            fontSize: 14, bold: true, color: 'FFFFFF',
+            fill: { color: state.okng[q.qid] === 'OK' ? PPTX_TEAL : 'B4482F' }, align: 'center',
+          });
+        }
+        qs.addText(answerLines(q.qid).map(t => '・' + t).join('\n'),
+          { x: 0.5, y: 1.5, w: 9, h: 3.6, fontSize: 14, color: PPTX_INK, valign: 'top', lineSpacingMultiple: 1.3 });
+      });
+      let chk = pptx.addSlide();
+      chk.background = { color: 'FFFFFF' };
+      chk.addText('最終チェックリスト', { x: 0.5, y: 0.4, w: 9, h: 0.6, fontFace: 'Yu Mincho', fontSize: 20, bold: true, color: PPTX_NAVY });
+      const chkText = sec.checklistItems.map((t, i) => `${state.checks[i] ? '☑' : '☐'} ${t}`).join('\n\n');
+      chk.addText(chkText, { x: 0.5, y: 1.2, w: 9, h: 4, fontSize: 13, color: PPTX_INK, valign: 'top', lineSpacingMultiple: 1.3 });
+      return;
     }
-  });
-  return scores;
-}
 
-/* ---------- ローディング演出 ---------- */
-
-function goToResult() {
-  showScreen(el.screenLoading);
-  let i = 0;
-  el.loadingText.textContent = LOADING_MESSAGES[0];
-  const rotate = setInterval(() => {
-    i += 1;
-    if (i < LOADING_MESSAGES.length) {
-      el.loadingText.textContent = LOADING_MESSAGES[i];
-    }
-  }, 480);
-  setTimeout(() => {
-    clearInterval(rotate);
-    showResult();
-  }, 1450);
-}
-
-/* ---------- 結果算出 & 表示 ---------- */
-
-function showResult() {
-  const finalScores = computeFinalScores();
-  const sorted = sortTypesByScore(finalScores);
-  const primary = getType(sorted[0].code);
-  const secondary = getType(sorted[1].code);
-  const allZero = TYPES.every((t) => finalScores[t.code] === 0);
-
-  lastResult = { primary, secondary };
-
-  el.resultNote.hidden = !allZero;
-  if (allZero) el.resultNote.textContent = ALL_NO_MESSAGE;
-
-  el.primaryDot.style.background = primary.color;
-  el.primaryName.textContent = primary.name;
-  el.primaryCatch.textContent = `「${primary.catchCopy}」`;
-
-  el.secondaryDot.style.background = secondary.color;
-  el.secondaryName.textContent = secondary.name;
-  el.secondaryCatch.textContent = `「${secondary.catchCopy}」`;
-
-  const combo = RESULTS[pairKey(primary.code, secondary.code)];
-  el.comboNames.textContent = `${primary.name} × ${secondary.name}`;
-  el.comboTitleText.textContent = combo.title;
-  el.comboFeature.textContent = combo.feature;
-  el.comboPattern.textContent = combo.pattern;
-  el.adviceText.textContent = combo.hint;
-
-  el.scoreChart.innerHTML = "";
-  TYPES.forEach((t) => {
-    const score = finalScores[t.code];
-    const row = document.createElement("div");
-    row.className = "score-row";
-    row.style.setProperty("--tc", t.color);
-    const dots = [0, 1, 2]
-      .map((i) => `<span class="score-dot${i < score ? " filled" : ""}"></span>`)
-      .join("");
-    row.innerHTML = `<span class="score-name">${t.name}</span><span class="score-dots">${dots}</span>`;
-    el.scoreChart.appendChild(row);
+    sec.questions.forEach(q => {
+      let qs = pptx.addSlide();
+      qs.background = { color: 'FFFFFF' };
+      qs.addShape('rect', { x: 0, y: 0, w: 0.12, h: 5.625, fill: { color: PPTX_TEAL } });
+      qs.addText(q.tag, { x: 0.5, y: 0.35, w: 8.8, h: 0.35, fontSize: 11, bold: true, color: PPTX_TEAL, charSpacing: 1 });
+      qs.addText(q.text, { x: 0.5, y: 0.65, w: 9, h: 0.9, fontFace: 'Yu Mincho', fontSize: 18, bold: true, color: PPTX_NAVY, valign: 'top' });
+      qs.addText(answerLines(q.qid).map(t => '・' + t).join('\n'),
+        { x: 0.5, y: 1.7, w: 9, h: 3.6, fontSize: 14, color: PPTX_INK, valign: 'top', lineSpacingMultiple: 1.3 });
+    });
   });
 
-  el.heartHabits.innerHTML = "";
-  [primary, secondary].forEach((t) => {
-    const row = document.createElement("div");
-    row.className = "heart-habit-row";
-    row.style.setProperty("--tc", t.color);
-    row.innerHTML = `<span class="hh-dot"></span><span><span class="hh-quote">「${t.heartHabit}」</span><br>${t.name}に多い心のクセ</span>`;
-    el.heartHabits.appendChild(row);
-  });
-
-  el.commonMessageBody.textContent = COMMON_MESSAGE.body;
-  el.commonMessageFooter.textContent = COMMON_MESSAGE.footer;
-  el.disclaimerText.textContent = DISCLAIMER_TEXT;
-
-  showScreen(el.screenResult);
+  const title2 = document.getElementById('f-title').value || '研修設計';
+  await pptx.writeFile({ fileName: `${title2}_研修資料.pptx` });
 }
 
-/* ---------- シェア & 再診断 ---------- */
-
-el.btnShare.addEventListener("click", () => {
-  if (!lastResult) return;
-  const { primary, secondary } = lastResult;
-  const text = `自己否定パターン診断をやってみました🌱\n私のタイプは\n『${primary.name} × ${secondary.name}』\nでした。\nあなたはどのタイプ？\n#自己否定パターン診断`;
-  const params = new URLSearchParams({ text });
-  if (location.protocol.indexOf("http") === 0) {
-    params.set("url", location.href);
+const pptxBtn = document.getElementById('pptx-btn');
+pptxBtn.addEventListener('click', async () => {
+  pptxBtn.disabled = true;
+  const original = pptxBtn.textContent;
+  pptxBtn.textContent = '作成中…';
+  try {
+    await buildPptx();
+  } catch(e){
+    alert('PowerPoint作成中にエラーが発生しました：' + e.message);
+    console.error(e);
+  } finally {
+    pptxBtn.disabled = false;
+    pptxBtn.textContent = original;
   }
-  window.open(`https://twitter.com/intent/tweet?${params.toString()}`, "_blank", "noopener");
-});
-
-el.btnRestart.addEventListener("click", () => {
-  state.sequence = [];
-  state.index = 0;
-  state.answers = {};
-  state.baseScores = null;
-  lastResult = null;
-  showScreen(el.screenIntro);
 });

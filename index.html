@@ -3,138 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>あなたの自己否定パターンを見つけよう | 6つのタイプ診断</title>
+<title>研修設計シート — Design Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="vendor/pptxgen.bundle.js"></script>
 </head>
 <body>
-<div class="app" id="app">
 
-  <!-- INTRO -->
-  <section class="screen" id="screen-intro">
-    <div class="card">
-      <div class="deco-row" aria-hidden="true">
-        <svg class="deco-icon" width="16" height="16" viewBox="0 0 24 24" fill="var(--type-ideal)"><path d="M12 0l2.9 8.9H24l-7.5 5.5 2.9 8.9L12 17.8 4.6 23.3l2.9-8.9L0 8.9h9.1z"/></svg>
-        <svg class="deco-icon" width="15" height="15" viewBox="0 0 24 24" fill="var(--type-love-effort)"><path d="M12 21s-7.5-4.9-10.2-9.3C.2 8.9 1.3 5 5 4c2.3-.6 4.4.5 5.9 2.6C12.4 4.5 14.5 3.4 16.8 4c3.7 1 4.8 4.9 3.2 7.7C19.5 16.1 12 21 12 21z"/></svg>
-        <svg class="deco-icon" width="14" height="14" viewBox="0 0 24 24" fill="var(--type-resonance)"><circle cx="12" cy="12" r="12"/></svg>
-      </div>
-      <p class="eyebrow">自己理解ワーク・約2〜3分</p>
-      <h1>あなたの自己否定パターンを見つけよう</h1>
-      <p class="subtitle">6つのタイプ診断</p>
-      <p class="lead">
-        自分を責めてしまうとき、あなたの心ではどんなクセが働いているのでしょう？
-        YES / NOで答えるだけで、あなたが自分を否定してしまう“心のクセ”を見つけてみましょう。
-      </p>
-      <ul class="feature-list">
-        <li>18問・約2〜3分</li>
-        <li>YES / NOで簡単診断</li>
-        <li>正解・不正解はありません</li>
-      </ul>
-      <p class="guidance">深く考えすぎず、今の自分に近いと思う方を直感で選んでください。</p>
-      <button class="btn btn-primary" id="btn-start">診断をはじめる</button>
-      <p class="disclaimer">※ この診断は医療的・心理学的な診断を行うものではありません。自己理解のためのセルフチェックとしてご利用ください。</p>
-    </div>
-  </section>
+<header class="top">
+  <div class="eyebrow">Training Design Sheet · Interactive</div>
+  <h1 class="title">研修設計シート</h1>
+  <div class="sub">クライアント属性を選ぶと、各設問に応じたフォロー選択肢が5つ表示されます。選ぶ・書く、どちらでも進められます。</div>
+</header>
 
-  <!-- QUIZ（本質問・タイブレークとも共通） -->
-  <section class="screen" id="screen-quiz" hidden>
-    <div class="card">
-      <p class="eyebrow">自己否定パターン診断</p>
-      <div class="progress-wrap">
-        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-        <p class="progress-label" id="progress-label">Q1 / 18</p>
-      </div>
-      <h2 class="question-text" id="question-text"></h2>
-      <div class="yesno" id="yesno" role="group" aria-label="回答">
-        <button type="button" class="yesno-btn" id="btn-yes" data-value="1">
-          <span class="yn-label">YES</span>
-          <span class="yn-sub">当てはまる</span>
-        </button>
-        <button type="button" class="yesno-btn" id="btn-no" data-value="0">
-          <span class="yn-label">NO</span>
-          <span class="yn-sub">当てはまらない</span>
-        </button>
-      </div>
-      <div class="nav-row">
-        <button class="btn btn-ghost" id="btn-back">前の質問に戻る</button>
+<div class="wrap">
+  <div class="desk">
+    <div class="field-row">
+      <div class="field company">
+        <label for="f-title">研修名</label>
+        <input type="text" id="f-title" placeholder="例）イグニッション">
       </div>
     </div>
-  </section>
-
-  <!-- LOADING -->
-  <section class="screen" id="screen-loading" hidden>
-    <div class="card loading-wrap">
-      <div class="loading-spinner" aria-hidden="true"></div>
-      <p class="loading-text" id="loading-text">あなたの回答を整理しています…</p>
-    </div>
-  </section>
-
-  <!-- RESULT -->
-  <section class="screen" id="screen-result" hidden>
-    <div class="card card-result">
-      <p class="result-lead">診断結果</p>
-      <h1>あなたの自己否定パターンは</h1>
-
-      <p class="result-note" id="result-note" hidden></p>
-
-      <div class="type-block" id="type-block-primary">
-        <span class="type-dot" id="primary-dot"></span>
-        <div>
-          <p class="type-rank">1位タイプ・メインの傾向</p>
-          <p class="type-name" id="primary-name"></p>
-          <p class="type-catch" id="primary-catch"></p>
-        </div>
+    <div class="field-row" style="margin-top:18px;">
+      <div class="field">
+        <label for="f-industry">クライアントの業種</label>
+        <select id="f-industry"></select>
+        <div class="other-note" id="other-note">「その他」を選んだ場合は、実際の業種に一番近いものを上のリストから選び直すことをおすすめします。近い業種を選ぶことで、より的確な選択肢が表示されます。</div>
       </div>
-
-      <div class="type-block" id="type-block-secondary">
-        <span class="type-dot" id="secondary-dot"></span>
-        <div>
-          <p class="type-rank">2位タイプ・次に強い傾向</p>
-          <p class="type-name" id="secondary-name"></p>
-          <p class="type-catch" id="secondary-catch"></p>
-        </div>
+      <div class="field">
+        <label for="f-position">対象の職位階層</label>
+        <select id="f-position"></select>
       </div>
-
-      <h2 class="combo-title">
-        <span class="combo-names" id="combo-names"></span>
-        <span id="combo-title-text"></span>
-      </h2>
-      <div class="combo-card">
-        <p class="combo-label">特徴</p>
-        <p id="combo-feature"></p>
-        <p class="combo-label">自己否定につながりやすいパターン</p>
-        <p id="combo-pattern"></p>
-      </div>
-
-      <h3 class="scores-heading">あなたの6タイプスコア</h3>
-      <p class="scores-caption">スコアが高い＝悪いという意味ではありません。誰の心にも、6つの傾向が少しずつあります。</p>
-      <div class="score-chart" id="score-chart"></div>
-
-      <h3 class="scores-heading">あなたの心のクセ</h3>
-      <div class="heart-habits" id="heart-habits"></div>
-
-      <div class="advice-box">
-        <p class="advice-label">少し楽になるためのヒント</p>
-        <p class="advice-text" id="advice-text"></p>
-      </div>
-
-      <div class="common-message">
-        <p id="common-message-body"></p>
-        <p id="common-message-footer"></p>
-      </div>
-
-      <p class="disclaimer" id="disclaimer-text"></p>
-
-      <div class="action-row">
-        <button class="btn btn-share" id="btn-share">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.6 8.7L23.3 22h-7l-5.5-7.2L4.5 22H1.4l8.1-9.3L1 2h7.2l5 6.6L18.9 2Zm-1.2 18h1.7L6.4 3.9H4.6L17.7 20Z"/></svg>
-          Xで結果をシェア
-        </button>
-        <button class="btn btn-ghost" id="btn-restart" style="width:100%">もう一度診断する</button>
+      <div class="field">
+        <label for="f-tenure">対象の勤続年数</label>
+        <select id="f-tenure"></select>
       </div>
     </div>
-  </section>
+  </div>
 
+  <div id="sections"></div>
 </div>
+
+<footer class="bottom">
+  <span id="progress">0 / 0 問 回答済み</span>
+  <div style="display:flex;gap:10px;">
+    <button type="button" class="export-btn secondary" id="export-btn">テキストで書き出す</button>
+    <button type="button" class="export-btn" id="pptx-btn">PowerPointで書き出す</button>
+  </div>
+</footer>
+
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>
