@@ -23,6 +23,7 @@ const el = {
   btnStart: document.getElementById("btn-start"),
   btnBack: document.getElementById("btn-back"),
   btnRestart: document.getElementById("btn-restart"),
+  btnPdf: document.getElementById("btn-pdf"),
 
   progressFill: document.getElementById("progress-fill"),
   progressLabel: document.getElementById("progress-label"),
@@ -39,6 +40,7 @@ const el = {
   worstNote: document.getElementById("worst-note"),
   bestList: document.getElementById("best-list"),
   worstList: document.getElementById("worst-list"),
+  nextStepText: document.getElementById("next-step-text"),
 };
 
 function fillIntroCopy() {
@@ -210,6 +212,8 @@ function showResult() {
   renderRankList(el.bestList, best, "var(--best)", 1);
   renderRankList(el.worstList, worst, "var(--worst)", 1);
 
+  el.nextStepText.textContent = COPY.nextStep;
+
   showScreen(el.screenResult);
 }
 
@@ -217,4 +221,8 @@ el.btnRestart.addEventListener("click", () => {
   state.index = 0;
   state.answers = {};
   showScreen(el.screenIntro);
+});
+
+el.btnPdf.addEventListener("click", () => {
+  window.print();
 });
