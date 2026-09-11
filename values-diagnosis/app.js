@@ -31,6 +31,10 @@ const el = {
 
   loadingText: document.getElementById("loading-text"),
 
+  primaryTypeName: document.getElementById("primary-type-name"),
+  primaryTypeDesc: document.getElementById("primary-type-desc"),
+  secondaryTypeName: document.getElementById("secondary-type-name"),
+  secondaryTypeDesc: document.getElementById("secondary-type-desc"),
   resultLead: document.getElementById("result-lead"),
   worstNote: document.getElementById("worst-note"),
   bestList: document.getElementById("best-list"),
@@ -136,6 +140,19 @@ function computeRanking() {
   return scored;
 }
 
+function computeTypeRanking(scoredValues) {
+  const scoreByCode = {};
+  scoredValues.forEach((v) => (scoreByCode[v.code] = v.score));
+
+  const typeScores = TYPES.map((t) => {
+    const avg = t.values.reduce((sum, code) => sum + scoreByCode[code], 0) / t.values.length;
+    return { ...t, score: avg };
+  });
+
+  typeScores.sort((a, b) => b.score - a.score);
+  return typeScores;
+}
+
 /* ---------- ローディング演出 ---------- */
 
 function goToResult() {
@@ -178,6 +195,14 @@ function showResult() {
   const ranked = computeRanking();
   const best = ranked.slice(0, 10);
   const worst = ranked.slice(-10).reverse(); // 最も優先度が低いものを1位として表示
+  const rankedTypes = computeTypeRanking(ranked);
+  const primaryType = rankedTypes[0];
+  const secondaryType = rankedTypes[1];
+
+  el.primaryTypeName.textContent = primaryType.name;
+  el.primaryTypeDesc.textContent = primaryType.description;
+  el.secondaryTypeName.textContent = secondaryType.name;
+  el.secondaryTypeDesc.textContent = secondaryType.description;
 
   el.resultLead.textContent = COPY.resultIntro;
   el.worstNote.textContent = COPY.worstNote;
