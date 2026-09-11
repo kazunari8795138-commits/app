@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>あなたの価値観を見つけよう | 価値観診断</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- INTRO -->
+  <section class="screen" id="screen-intro">
+    <div class="card">
+      <p class="eyebrow" id="intro-eyebrow"></p>
+      <h1 id="intro-title"></h1>
+      <p class="subtitle" id="intro-subtitle"></p>
+      <p class="lead" id="intro-lead"></p>
+      <ul class="feature-list">
+        <li>35問・約4〜5分</li>
+        <li>5段階で回答</li>
+        <li>正解・不正解はありません</li>
+      </ul>
+      <p class="guidance" id="intro-guidance"></p>
+      <button class="btn btn-primary" id="btn-start">診断をはじめる</button>
+      <p class="disclaimer" id="intro-disclaimer"></p>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="screen" id="screen-quiz" hidden>
+    <div class="card">
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <p class="progress-label" id="progress-label">質問 1 / 35</p>
+      </div>
+      <h2 class="question-text" id="question-text"></h2>
+      <div class="options" id="options"></div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-back">前の質問に戻る</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOADING -->
+  <section class="screen" id="screen-loading" hidden>
+    <div class="card loading-wrap">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p class="loading-text" id="loading-text"></p>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="screen-result" hidden>
+    <div class="card card-result">
+      <h1>あなたの価値観ランキング</h1>
+      <p class="result-lead" id="result-lead"></p>
+
+      <div class="rank-section-title"><span class="swatch" style="background:var(--best)"></span>大切にしている価値観 ベスト10</div>
+      <div class="rank-list" id="best-list"></div>
+
+      <div class="rank-section-title"><span class="swatch" style="background:var(--worst)"></span>優先度が低い価値観 ワースト10</div>
+      <p class="rank-note" id="worst-note"></p>
+      <div class="rank-list" id="worst-list"></div>
+
+      <button class="btn btn-primary" id="btn-restart">もう一度診断する</button>
+    </div>
+  </section>
+
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
